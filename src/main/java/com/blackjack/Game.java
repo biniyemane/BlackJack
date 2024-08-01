@@ -40,11 +40,11 @@ public class Game {
             // Reset hands for new round
             deck = new Deck();
             dealer.getHand().getCards().clear();
-            player.getHand().getCards().clear();
+            player.resetHands();
 
             // Initial two cards for player and dealer
-            player.getHand().addCard(deck.drawCard());
-            player.getHand().addCard(deck.drawCard());
+            player.getCurrentHand().addCard(deck.drawCard());
+            player.getCurrentHand().addCard(deck.drawCard());
             dealer.getHand().addCard(deck.drawCard());
             dealer.getHand().addCard(deck.drawCard());
 
@@ -53,25 +53,44 @@ public class Game {
             System.out.println("The second card is face down.");
             displayPlayerHand();
 
-            // Player's turn
-            boolean playerTurn = true;
-            while (playerTurn) {
-                System.out.println("Would you like to: 1) Hit or 2) Stand");
-                String response = scanner.nextLine();
-                if (response.equals("1")) {
-                    player.getHand().addCard(deck.drawCard());
-                    displayPlayerHand();
-                    if (player.getHand().getValue() > 21) {
-                        System.out.println("You busted! Dealer wins.");
-                        losses++;
-                        break;
+            // Offer split option if applicable
+            if (player.getCurrentHand().getCards().get(0).getRank() == player.getCurrentHand().getCards().get(1).getRank()) {
+                System.out.println("You have two cards of the same rank. Would you like to split? (Y/N)");
+                String splitResponse = scanner.nextLine();
+                if (splitResponse.equalsIgnoreCase("Y")) {
+                    if (player.split()) {
+                        System.out.println("Hand was split.");
+                        player.getCurrentHand().addCard(deck.drawCard());
+                        player.moveToNextHand();
+                        player.getCurrentHand().addCard(deck.drawCard());
+                    } else {
+                        System.out.println("Unable to split hand.");
                     }
-                } else {
-                    playerTurn = false;
                 }
             }
 
-            if (player.getHand().getValue() <= 21) {
+            // Player's turn for each hand
+            for (Hand hand : player.getHands()) {
+                boolean playerTurn = true;
+                while (playerTurn) {
+                    System.out.println("Your hand: " + hand);
+                    System.out.println("Would you like to: 1) Hit or 2) Stand");
+                    String response = scanner.nextLine();
+                    if (response.equals("1")) {
+                        hand.addCard(deck.drawCard());
+                        System.out.println("Your hand: " + hand);
+                        if (hand.getValue() > 21) {
+                            System.out.println("You busted! Dealer wins.");
+                            losses++;
+                            playerTurn = false;
+                        }
+                    } else {
+                        playerTurn = false;
+                    }
+                }
+            }
+
+            if (player.getHands().stream().noneMatch(hand -> hand.getValue() > 21)) {
                 // Dealer's turn
                 System.out.println("You stand.");
                 displayDealerHand();
@@ -85,17 +104,19 @@ public class Game {
                     System.out.println("Dealer busts. You win!");
                     wins++;
                 } else {
-                    int playerValue = player.getHand().getValue();
-                    int dealerValue = dealer.getHand().getValue();
-                    if (playerValue > dealerValue) {
-                        System.out.println("You win!");
-                        wins++;
-                    } else if (playerValue < dealerValue) {
-                        System.out.println("You lose.");
-                        losses++;
-                    } else {
-                        System.out.println("It's a tie!");
-                        pushes++;
+                    for (Hand hand : player.getHands()) {
+                        int playerValue = hand.getValue();
+                        int dealerValue = dealer.getHand().getValue();
+                        if (playerValue > dealerValue) {
+                            System.out.println("You win!");
+                            wins++;
+                        } else if (playerValue < dealerValue) {
+                            System.out.println("You lose.");
+                            losses++;
+                        } else {
+                            System.out.println("It's a tie!");
+                            pushes++;
+                        }
                     }
                 }
             }
@@ -109,10 +130,10 @@ public class Game {
      */
     private void displayPlayerHand() {
         System.out.print("Player's hand looks like this:\n");
-        for (Card card : player.getHand().getCards()) {
+        for (Card card : player.getCurrentHand().getCards()) {
             System.out.print("[" + card + "] (" + getCardValue(card) + ") - ");
         }
-        System.out.println(" Valued at: " + player.getHand().getValue());
+        System.out.println(" Valued at: " + player.getCurrentHand().getValue());
     }
 
     /**
